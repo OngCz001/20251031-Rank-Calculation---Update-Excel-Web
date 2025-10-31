@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <meta charset="UTF-8" />
+  <title>Rank Score Tool</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+
+    <!-- Main Menu -->
+    <div id="mainMenu" class="panel main-menu">
+      <h1 class="menu-heading">What you want to do today?</h1>
+      <div class="menu-grid">
+        <div class="menu-tile" onclick="showPanel('calculator')">
+          <div class="menu-icon"><i class="fas fa-chart-line"></i></div>
+          <div class="menu-title">Rank Calculate</div>
+        </div>
+        <div class="menu-tile excel" onclick="showPanel('updateExcel')">
+          <div class="menu-icon"><i class="fas fa-file-excel"></i></div>
+          <div class="menu-title">Update Excel</div>
+        </div>
+        <div class="menu-tile facebook" onclick="window.open('https://www.facebook.com/newstarxiangqi', '_blank')">
+          <div class="menu-icon"><i class="fab fa-facebook-f"></i></div>
+          <div class="menu-title">Visit us on Facebook</div>
+        </div>
+        <div class="menu-tile coming-soon">
+          <div class="menu-icon">🚧</div>
+          <div class="menu-title">Many more coming...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel 1: Rank Score Calculator -->
+    <div id="calculator" class="panel styled-panel" style="display: none;">
+      <div class="content-box">
+        <button onclick="showPanel('mainMenu')">⬅ Back</button>
+        <h1>Rank Score Calculator</h1>
+
+        <label>Import Text File:</label>
+        <input type="file" id="importFile" accept=".txt" />
+
+        <label>Insert Output File Name:</label>
+        <input type="text" id="fileName" placeholder="filename" />
+
+        <label>Round:</label>
+        <input type="number" id="rounds" min="1" value="4" />
+
+        <label>Mark:</label>
+        <select id="markPerRound">
+          <option value="1">1</option>
+          <option value="2" selected>2</option>
+        </select>
+
+        <div class="actions">
+          <button onclick="calculate()">Calculate</button>
+          <button onclick="clearForm()">Clear</button>
+        </div>
+
+        <div id="resultMsg"></div>
+      </div>
+    </div>
+
+    <!-- Panel 2: Update Excel Tool -->
+    <div id="updateExcel" class="panel styled-panel" style="display: none;">
+      <div class="content-box">
+        <button onclick="showPanel('mainMenu')">⬅ Back</button>
+        <h1>Update Excel Tool</h1>
+        <p>This area is for updating Excel files. Future features will go here.</p>
+        <button onclick="alertKValues()">Alert K Values</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="app.js"></script>
+  <script>
+    function showPanel(panelId) {
+      document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+      document.getElementById(panelId).style.display = 'block';
+    }
+
+    function alertKValues() {
+      if (!players.length) {
+        alert("No players loaded. Please upload a .txt file in Calculator tab first.");
+        return;
+      }
+      players.forEach(p => alert(`Player: ${p[0]} | K: ${p[2]}`));
+    }
+  </script>
+</body>
+</html>
