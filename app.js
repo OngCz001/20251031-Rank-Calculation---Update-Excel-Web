@@ -44,7 +44,6 @@ function calculate() {
     const avgOpponent = Math.ceil(total / (roundCount - empty));
     const expected = (getExpectedScore(rank, avgOpponent)).toFixed(1);
     const change = (score - expected) * k;
-    alert(`Player: ${name} | K-value: ${k} | expected: ${(expected)} | change: ${change}`);
     const final = Math.round(rank + change);
 
     return [
@@ -119,13 +118,20 @@ function generateExcel(data) {
 }
 
 function generateText(data) {
-  const lines = data.map(row => `${row[1]} ${row[row.length - 1]}`).join("\n");
+  const lines = data.map(row => {
+    const name = row[1];          // Player name
+    const oldRank = row[2];       // Original rank
+    const newRank = row[row.length - 1]; // Final rank (last column)
+    return `${name},${oldRank},${newRank}`;
+  }).join("\n");
+
   const blob = new Blob([lines], { type: "text/plain" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = `${fileName}.txt`;
   a.click();
 }
+
 
 function clearForm() {
   document.getElementById("importFile").value = "";
