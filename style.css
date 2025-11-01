@@ -78,11 +78,12 @@ button {
   transition: all 0.3s ease;
   cursor: pointer;
   text-align: center;
+  border-color: black;
 }
 
 .menu-tile:hover {
   background-color: #e9f5ff;
-  border-color: #a3d4ff;
+  border-color: black;
   transform: translateY(-4px);
   box-shadow: 0 6px 18px rgba(0,0,0,0.1);
 }
@@ -188,4 +189,25 @@ button {
   margin-top: 20px;
   font-weight: bold;
   color: green;
+}
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.user-guide {
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 15px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s ease;
+}
+
+.user-guide:hover {
+  background-color: #1e7e34;
 }

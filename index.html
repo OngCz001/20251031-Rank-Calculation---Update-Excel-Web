@@ -36,7 +36,11 @@
     <!-- Panel 1: Rank Score Calculator -->
     <div id="calculator" class="panel styled-panel" style="display: none;">
       <div class="content-box">
-        <button onclick="showPanel('mainMenu')">⬅ Back</button>
+        <div class="header-row">
+          <button onclick="showPanel('mainMenu')">⬅ Back</button>
+          <button class="user-guide" onclick="window.open('guide.html', '_blank')">📘 User Guide</button>
+        </div>
+
         <h1>Rank Score Calculator</h1>
 
         <label>Import Text File:</label>
