@@ -72,8 +72,16 @@
       <div class="content-box">
         <button onclick="showPanel('mainMenu')">⬅ Back</button>
         <h1>Update Excel Tool</h1>
-        <p>This area is for updating Excel files. Future features will go here.</p>
-        <button onclick="alertKValues()">Alert K Values</button>
+        <label>Upload Original Excel File:</label>
+        <input type="file" id="excelFile" accept=".xlsx, .xls" />
+        <label>Upload Rank Update Text File (from calculator):</label>
+        <input type="file" id="rankUpdateFile" accept=".txt" />
+        <button onclick="processRankUpdate()">Update and Download Excel</button>
+        <hr />
+        <label>✅ Successfully Updated:</label>
+        <textarea id="successList" rows="6" readonly style="width:100%; background:#e8f5e9; border: 1px solid #c8e6c9;"></textarea>
+        <label>❌ Unmatched Entries:</label>
+        <textarea id="failList" rows="6" readonly style="width:100%; background:#ffebee; border: 1px solid #ffcdd2;"></textarea>
       </div>
     </div>
 
@@ -81,6 +89,8 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="app.js"></script>
+  <script src="updateExcel.js"></script>
+
   <script>
     function showPanel(panelId) {
       document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
