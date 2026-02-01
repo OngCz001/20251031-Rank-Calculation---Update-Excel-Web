@@ -3,12 +3,58 @@ let roundCount = 4;
 let fullMark = 2;
 let fileName = "output";
 
+/**
+ * Supports both formats:
+ *   - Old: 6
+ *   - New: W6 / D6 / L6  (W=win, D=draw, L=lose)
+ * Returns parsed opponentId for calculation, while keeping the original
+ * token (e.g. "W6") for Excel display.
+ */
+function parseOpponentToken(token) {
+  if (token === undefined || token === null) {
+    return { opponentId: null, display: "" };
+  }
+
+  const raw = String(token).trim();
+  if (!raw) {
+    return { opponentId: null, display: "" };
+  }
+
+  const first = raw[0].toUpperCase();
+  const maybeNumber =
+    (first === "W" || first === "D" || first === "L")
+      ? raw.slice(1)
+      : raw;
+
+  const opponentId = parseInt(maybeNumber, 10);
+  return {
+    opponentId: Number.isFinite(opponentId) ? opponentId : null,
+    display: raw
+  };
+}
+
+// Filter out header/invalid rows safely (e.g., first line "名字，等级分...")
+function isValidPlayerRow(row) {
+  if (!row || row.length < 4) return false;
+  const rank = parseInt(row[1], 10);
+  const k = parseInt(row[2], 10);
+  return Number.isFinite(rank) && Number.isFinite(k);
+}
+
 document.getElementById("importFile").addEventListener("change", function (e) {
   const file = e.target.files[0];
   const reader = new FileReader();
   reader.onload = function (e) {
-    const lines = e.target.result.trim().split("\n");
-    players = lines.map(line => line.split(","));
+    const lines = e.target.result
+      .replace(/\r/g, "")
+      .trim()
+      .split("\n")
+      .map(l => l.trim())
+      .filter(Boolean);
+
+    players = lines
+      .map(line => line.split(",").map(x => x.trim()))
+      .filter(isValidPlayerRow);
   };
   reader.readAsText(file);
 });
@@ -25,23 +71,28 @@ function calculate() {
 
   const updatedPlayers = players.map((player, index) => {
     const name = player[0];
-    const rank = parseInt(player[1]);
-    const k = parseInt(player[2]);
+    const rank = parseInt(player[1], 10);
+    const k = parseInt(player[2], 10);
     const score = parseFloat(player[3 + roundCount]);
 
-    // Calculate opponent average
+    // Calculate opponent average (uses ONLY opponentId number; ignores W/D/L)
     let total = 0;
     let empty = 0;
+
     for (let i = 0; i < roundCount; i++) {
-      const opponentIndex = parseInt(player[3 + i]) - 1;
+      const { opponentId } = parseOpponentToken(player[3 + i]);
+      const opponentIndex = opponentId ? opponentId - 1 : -1;
+
       if (opponentIndex >= 0 && players[opponentIndex]) {
-        total += parseInt(players[opponentIndex][1]);
+        total += parseInt(players[opponentIndex][1], 10);
       } else {
         empty++;
       }
     }
 
-    const avgOpponent = Math.ceil(total / (roundCount - empty));
+    const divisor = roundCount - empty;
+    const avgOpponent = divisor > 0 ? Math.ceil(total / divisor) : 0;
+
     const expected = (getExpectedScore(rank, avgOpponent)).toFixed(1);
     const change = (score - expected) * k;
     const final = Math.round(rank + change);
@@ -51,6 +102,7 @@ function calculate() {
       name,
       rank,
       k,
+      // Keep raw values so Excel shows W6/L2/etc exactly
       ...player.slice(3, 3 + roundCount),
       score,
       avgOpponent,
@@ -63,7 +115,8 @@ function calculate() {
   generateExcel(updatedPlayers);
   generateText(updatedPlayers);
 
-  document.getElementById("resultMsg").innerText = `✅ Calculation completed. Files ready for download.`;
+  document.getElementById("resultMsg").innerText =
+    `✅ Calculation completed. Files ready for download.`;
 }
 
 function getExpectedScore(playerMark, oppMark) {
@@ -131,7 +184,6 @@ function generateText(data) {
   a.download = `${fileName}.txt`;
   a.click();
 }
-
 
 function clearForm() {
   document.getElementById("importFile").value = "";
