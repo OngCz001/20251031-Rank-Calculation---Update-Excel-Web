@@ -13,6 +13,8 @@ let roundCount = 4;
 let fullMark = 2;
 let outputFileName = "output";
 
+const MIN_FINAL_RANK = 1550;
+
 // === UI reset hook (index.html calls this) ===
 window.clearImportedGroups = function () {
   groups = [];
@@ -138,7 +140,7 @@ function calculate() {
   const workbook = XLSX.utils.book_new();
   const usedSheetNames = new Set();
 
-  // Also build one update text file (compatible with your Update Excel tool)
+  // One update text file output for ALL groups
   const updateLines = [];
 
   for (const group of groups) {
@@ -164,6 +166,7 @@ function calculate() {
       legendRowIndex: meta.legendRowIndex,
       groupRowIndex: meta.groupRowIndex,
       kTableStartRow: meta.kTableStartRow,
+      adjustedFinalFlags: meta.adjustedFinalFlags,
     });
 
     const sheetName = makeUniqueSheetName(group.sheetBase, usedSheetNames);
@@ -185,7 +188,7 @@ function calculate() {
 
   document.getElementById("resultMsg").innerText = "✅ Calculation completed. Files ready for download.";
 
-  // Reset file list so user can start a new operation (keep result message)
+  // Reset file list so user can start a new operation
   if (typeof window.resetRankImportUI === "function") {
     window.resetRankImportUI({ clearResult: false });
   }
@@ -193,6 +196,8 @@ function calculate() {
 
 // ===== Group Calculation & Sheet Layout =====
 function calculateGroup(players, groupName) {
+  const adjustedFinalFlags = []; // boolean per data row
+
   const updatedPlayers = players.map((player, index) => {
     const name = player[0];
     const rank = parseInt(player[1], 10);
@@ -219,7 +224,13 @@ function calculateGroup(players, groupName) {
 
     const expected = Number(getExpectedScore(rank, avgOpponent)).toFixed(1);
     const change = (score - parseFloat(expected)) * k;
-    const finalRank = Math.round(rank + change);
+
+    const rawFinalRank = Math.round(rank + change);
+
+    // ✅ NEW RULE: If final < 1550, reset to 1550
+    const adjusted = rawFinalRank < MIN_FINAL_RANK;
+    const finalRank = adjusted ? MIN_FINAL_RANK : rawFinalRank;
+    adjustedFinalFlags.push(adjusted);
 
     return [
       index + 1,
@@ -236,10 +247,6 @@ function calculateGroup(players, groupName) {
   });
 
   // Layout indices (0-based)
-  // Requirement:
-  // 1) Legend row is 2 rows before header
-  // 2) Group name row is between legend and header
-  // 3) K-table sits above 平均对手等级分 & 期望分, and its last row aligns with Legend row
   const totalCols = 9 + roundCount;
   const headerRowIndex = 8;
   const legendRowIndex = headerRowIndex - 2;
@@ -274,8 +281,7 @@ function calculateGroup(players, groupName) {
   // Group name row (between legend and header)
   wsData[groupRowIndex][roundsStartCol + 1] = groupName;
 
-  // K-table above 平均对手等级分 & 期望分 (two columns: avgOppCol and expectedCol)
-  // last row aligns with legendRowIndex
+  // K-table above 平均对手等级分 & 期望分
   wsData[kTableStartRow][avgOppCol] = "等级分";
   wsData[kTableStartRow][expectedCol] = "K值";
 
@@ -310,7 +316,7 @@ function calculateGroup(players, groupName) {
     wsData[dataStartRowIndex + i] = updatedPlayers[i];
   }
 
-  // Update text lines: name, oldRank, newRank
+  // Update text lines: name, oldRank, newRank (use adjusted final)
   const groupUpdateLines = updatedPlayers.map((row) => {
     const name = row[1];
     const oldRank = row[2];
@@ -335,6 +341,7 @@ function calculateGroup(players, groupName) {
       roundsStartCol,
       changeCol,
       kTableStartRow,
+      adjustedFinalFlags,
     },
     groupUpdateLines,
   };
@@ -429,21 +436,12 @@ function applySheetFormatting(ws, opts) {
     legendRowIndex,
     groupRowIndex,
     kTableStartRow,
+    adjustedFinalFlags,
   } = opts;
-
-  // Row heights (make header row same as data rows)
-  ws["!rows"] = ws["!rows"] || [];
-  ws["!rows"][0] = { hpt: 24 }; // title row (optional, nice)
-  ws["!rows"][headerRowIndex] = { hpt: 15 }; // header row = normal height
-
-  // Make data rows consistent too (optional but recommended)
-  for (let r = dataStartRowIndex; r < dataStartRowIndex + dataRowCount; r++) {
-    ws["!rows"][r] = { hpt: 15 };
-  }
 
   ws["!merges"] = ws["!merges"] || [];
 
-  // Column widths
+  // Column widths (keep your current widths)
   const widths = [];
   widths.push({ wch: 6 });   // 编号
   widths.push({ wch: 12 });  // 棋手
@@ -454,8 +452,16 @@ function applySheetFormatting(ws, opts) {
   widths.push({ wch: 16 });  // 平均对手等级分
   widths.push({ wch: 8 });   // 期望分
   widths.push({ wch: 8 });   // 变化
-  widths.push({ wch: 10 });  // 最终等级分
+  widths.push({ wch: 12 });  // 最终等级分 (slightly wider)
   ws["!cols"] = widths;
+
+  // Row heights (keep header same height as data rows)
+  ws["!rows"] = ws["!rows"] || [];
+  ws["!rows"][0] = { hpt: 24 }; // title row
+  ws["!rows"][headerRowIndex] = { hpt: 15 }; // header row normal height
+  for (let r = dataStartRowIndex; r < dataStartRowIndex + dataRowCount; r++) {
+    ws["!rows"][r] = { hpt: 15 };
+  }
 
   const thinBorder = {
     top: { style: "thin", color: { rgb: "000000" } },
@@ -481,11 +487,10 @@ function applySheetFormatting(ws, opts) {
       vertical: "center",
       horizontal: "center",
       wrapText: false,
-      shrinkToFit: true,   // keeps row height small even for long headers
+      shrinkToFit: true,
     },
     border: thinBorder,
   };
-
 
   // Only 等级分 header filled
   const ratingHeaderFill = { patternType: "solid", fgColor: { rgb: "F4B183" } };
@@ -497,6 +502,9 @@ function applySheetFormatting(ws, opts) {
 
   // K table header fill
   const kHeaderFill = { patternType: "solid", fgColor: { rgb: "D9D9D9" } };
+
+  // ✅ Yellow fill for adjusted final rank cells
+  const adjustedFinalFill = { patternType: "solid", fgColor: { rgb: "FFFF00" } };
 
   function addr(r, c) {
     return XLSX.utils.encode_cell({ r, c });
@@ -531,9 +539,6 @@ function applySheetFormatting(ws, opts) {
     font: { name: "Calibri", sz: 12, bold: true },
     alignment: { vertical: "center", horizontal: "center" },
   });
-  for (let c = roundsStartCol; c <= roundsStartCol + 2; c++) {
-    setCell(groupRowIndex, c, { alignment: { vertical: "center", horizontal: "center" } });
-  }
 
   // K-table formatting (with borders), last row aligns with legend row
   for (let r = kTableStartRow; r <= legendRowIndex; r++) {
@@ -554,8 +559,12 @@ function applySheetFormatting(ws, opts) {
     setCell(headerRowIndex, c, style);
   }
 
-  // Data rows: thin borders, round colors, change font colors
+  const finalCol = totalCols - 1;
+
+  // Data rows: thin borders, round colors, change font colors, final yellow if adjusted
   for (let r = dataStartRowIndex; r < dataStartRowIndex + dataRowCount; r++) {
+    const dataIndex = r - dataStartRowIndex; // 0-based within data
+
     for (let c = 0; c < totalCols; c++) {
       setCell(r, c, baseCell);
 
@@ -578,12 +587,15 @@ function applySheetFormatting(ws, opts) {
           else if (num < 0) setCell(r, c, { ...baseCell, font: { color: { rgb: "C00000" }, bold: true } });
         }
       }
+
+      // ✅ Final rank column: fill yellow if adjusted to MIN_FINAL_RANK
+      if (c === finalCol && adjustedFinalFlags && adjustedFinalFlags[dataIndex]) {
+        setCell(r, c, { ...baseCell, fill: adjustedFinalFill });
+      }
     }
   }
 
-  // No bold outside border (Requirement #5) -> we only use thin borders everywhere.
-
-  // Ensure title text
+  // Ensure title and group text
   const titleAddr = addr(0, 0);
   if (ws[titleAddr]) ws[titleAddr].v = sheetTitle;
 
