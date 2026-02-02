@@ -43,8 +43,21 @@
 
         <h1>Rank Score Calculator</h1>
 
-        <label>Import Text File:</label>
-        <input type="file" id="importFile" accept=".txt,.csv" />
+        <label>Import Text File (You can select multiple files, each file = 1 group):</label>
+        <input type="file" id="importFile" accept=".txt" multiple />
+
+        <!-- Selected file names (boxed UI) -->
+        <div id="importFileEmpty" class="file-list-empty">No files selected.</div>
+        <div id="importFileBox" class="file-list-box is-hidden">
+          <div class="file-list-header">
+            <div class="file-list-title">
+              <i class="fa-regular fa-file-lines"></i>
+              Selected files
+            </div>
+            <div id="importFileCount" class="file-count">0</div>
+          </div>
+          <ul id="importFileList" class="file-list"></ul>
+        </div>
 
         <label>Insert Output File Name:</label>
         <input type="text" id="fileName" placeholder="filename" />
@@ -87,23 +100,93 @@
 
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- Use xlsx-js-style so we can write cell colors/borders/fonts in exported Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="app.js"></script>
   <script src="updateExcel.js"></script>
 
   <script>
+    function resetRankImportUI(options) {
+      const opts = Object.assign({ clearResult: true }, options || {});
+      const input = document.getElementById('importFile');
+      const list = document.getElementById('importFileList');
+      const box = document.getElementById('importFileBox');
+      const empty = document.getElementById('importFileEmpty');
+      const count = document.getElementById('importFileCount');
+      const resultMsg = document.getElementById('resultMsg');
+
+      if (input) input.value = '';
+      if (list) list.innerHTML = '';
+      if (count) count.textContent = '0';
+
+      if (box) box.classList.add('is-hidden');
+      if (empty) empty.classList.remove('is-hidden');
+
+      if (opts.clearResult && resultMsg) resultMsg.innerText = '';
+
+      // Clear imported groups data managed by app.js (if available)
+      if (typeof window.clearImportedGroups === 'function') {
+        window.clearImportedGroups();
+      }
+    }
+
     function showPanel(panelId) {
+      // If user goes back to main menu, reset calculator file list so user can start fresh
+      if (panelId === 'mainMenu') {
+        resetRankImportUI({ clearResult: true });
+      }
       document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
       document.getElementById(panelId).style.display = 'block';
     }
 
-    function alertKValues() {
-      if (!players.length) {
-        alert("No players loaded. Please upload a .txt file in Calculator tab first.");
-        return;
+    // File list rendering (boxed UI)
+    (function () {
+      const input = document.getElementById('importFile');
+      const list = document.getElementById('importFileList');
+      const box = document.getElementById('importFileBox');
+      const empty = document.getElementById('importFileEmpty');
+      const count = document.getElementById('importFileCount');
+      if (!input || !list || !box || !empty || !count) return;
+
+      function renderFileList() {
+        list.innerHTML = '';
+        const files = Array.from(input.files || []);
+        count.textContent = String(files.length);
+
+        if (files.length === 0) {
+          box.classList.add('is-hidden');
+          empty.classList.remove('is-hidden');
+          return;
+        }
+
+        empty.classList.add('is-hidden');
+        box.classList.remove('is-hidden');
+
+        files.forEach((f) => {
+          const li = document.createElement('li');
+          li.className = 'file-item';
+
+          const icon = document.createElement('span');
+          icon.className = 'file-icon';
+          icon.innerHTML = '<i class="fa-regular fa-file-lines"></i>';
+
+          const name = document.createElement('span');
+          name.className = 'file-name';
+          name.textContent = f.name;
+
+          li.appendChild(icon);
+          li.appendChild(name);
+          list.appendChild(li);
+        });
       }
-      players.forEach(p => alert(`Player: ${p[0]} | K: ${p[2]}`));
-    }
+
+      input.addEventListener('change', renderFileList);
+
+      // Expose for app.js to call after calculation
+      window.resetRankImportUI = resetRankImportUI;
+    })();
+
+    // (Optional) additional helper functions can go here
   </script>
 </body>
 </html>
